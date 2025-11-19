@@ -14,6 +14,7 @@ function Repuestos() {
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -279,6 +280,7 @@ function Repuestos() {
         setMensaje('No tenés permiso para crear repuestos.');
         return;
       }
+      setIsSaving(true);
       fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -300,7 +302,8 @@ function Repuestos() {
           ));
         })
         .then(() => { handleModalClose(); fetchRepuestos(); fetchRepuestosProveedores(); })
-        .catch(err => setMensaje(err.message));
+        .catch(err => setMensaje(err.message))
+        .finally(() => setIsSaving(false));
       return;
     }
 
@@ -309,6 +312,7 @@ function Repuestos() {
         setMensaje('No tenés permiso para modificar repuestos.');
         return;
       }
+      setIsSaving(true);
       const repuestoUpdateData = { marca: form.marca, modelo: form.modelo };
       fetch(`${API_URL}/${form.idRepuesto}`, {
         method: "PUT",
@@ -339,7 +343,8 @@ function Repuestos() {
           return Promise.all([...promesasEliminar, ...promesasUpsert]);
         })
         .then(() => { handleModalClose(); fetchRepuestos(); fetchRepuestosProveedores(); })
-        .catch(err => setMensaje(err.message));
+        .catch(err => setMensaje(err.message))
+        .finally(() => setIsSaving(false));
     }
   };
 
@@ -543,19 +548,18 @@ function Repuestos() {
                             </div>
                             <div className="col-sm-6">
                               <label>Costo</label>
-                              <div className="input-group align-items-center">
-                                <span className="input-group-text" style={{ width: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>$</span>
-                                <input 
-                                  type="number" 
-                                  className="form-control" 
-                                  value={p.costo ?? ''} 
-                                  onChange={e => handleProveedorChange(idx, "costo", e.target.value)} 
-                                  required 
-                                  min="0" 
-                                  step="0.01" 
-                                  disabled={modalModo === 'consultar'}
-                                />
-                              </div>
+                              <input 
+                                type="text" 
+                                className="form-control" 
+                                value={p.costo !== null && p.costo !== undefined && p.costo !== '' ? `$${p.costo}` : ''} 
+                                onChange={e => {
+                                  const value = e.target.value.replace(/[^0-9.]/g, ''); // Remover caracteres no numéricos excepto punto
+                                  handleProveedorChange(idx, "costo", value);
+                                }} 
+                                placeholder="$0.00"
+                                required 
+                                disabled={modalModo === 'consultar'}
+                              />
                             </div>
                             {/* cantidad removed: not tracked in local stock */}
                             {modalModo !== 'consultar' && (
@@ -580,9 +584,12 @@ function Repuestos() {
                     {mensaje && <div className="alert alert-danger">{mensaje}</div>}
                     {(modalModo === "modificar" || modalModo === "alta") && (
                       <div className="d-flex flex-column flex-md-row justify-content-end gap-2 mt-3">
-                        <button type="submit" className="btn btn-azul fw-bold">
-                          <i className="bi bi-save me-1"></i>
-                          {modalModo === "modificar" ? "Guardar cambios" : "Guardar"}
+                        <button type="submit" className="btn btn-azul fw-bold" disabled={isSaving}>
+                          {isSaving ? (
+                            <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Guardando...</>
+                          ) : (
+                            <><i className="bi bi-save me-1"></i>{modalModo === "modificar" ? "Guardar cambios" : "Guardar"}</>
+                          )}
                         </button>
                         <button
                           type="button"

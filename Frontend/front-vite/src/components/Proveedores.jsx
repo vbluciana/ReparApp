@@ -46,6 +46,7 @@ function Proveedores() {
   const closeActiveProvidersModal = () => setActiveModalOpen(false);
   
   const [mensaje, setMensaje] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [, setMostrarFormulario] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalModo, setModalModo] = useState('consultar'); // 'consultar' | 'modificar'
@@ -128,6 +129,7 @@ function Proveedores() {
       setMensaje('Ya existe un proveedor con ese CUIL/CUIT.');
       return;
     }
+    setIsSaving(true);
     fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -147,7 +149,8 @@ function Proveedores() {
           .then(res => res.json())
           .then(data => setProveedores(data));
       })
-      .catch(err => { console.warn('Proveedores: submit error', err); setMensaje(err.message); });
+      .catch(err => { console.warn('Proveedores: submit error', err); setMensaje(err.message); })
+      .finally(() => setIsSaving(false));
   }
 
   function handleDelete(cuil) {
@@ -357,6 +360,7 @@ function Proveedores() {
       setMensaje("Por favor, corrige los errores antes de continuar.");
       return;
     }
+    setIsSaving(true);
     try {
       const res = await fetch(`${API_URL}/${editId}`, {
         method: "PUT",
@@ -381,6 +385,8 @@ function Proveedores() {
       }
     } catch (err) {
       setMensaje("Error de red: " + (err.message || String(err)));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -633,9 +639,12 @@ function Proveedores() {
                   )}
                   {(modalModo === "modificar" || modalModo === "alta") && (
                     <div className="d-flex flex-column flex-md-row justify-content-end gap-2 mt-3">
-                      <button type="submit" className="btn btn-azul fw-bold" disabled={dupChecking || duplicateExists}>
-                        <i className="bi bi-save me-1"></i>
-                        {modalModo === "modificar" ? "Guardar cambios" : "Guardar"}
+                      <button type="submit" className="btn btn-azul fw-bold" disabled={dupChecking || duplicateExists || isSaving}>
+                        {isSaving ? (
+                          <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Guardando...</>
+                        ) : (
+                          <><i className="bi bi-save me-1"></i>{modalModo === "modificar" ? "Guardar cambios" : "Guardar"}</>
+                        )}
                       </button>
                       <button
                         type="button"

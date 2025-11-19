@@ -41,6 +41,7 @@ export default function Servicios() {
   });
   const [originalRepuestos, setOriginalRepuestos] = useState([]);
   const [mensaje, setMensaje] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   // Services catalog modal (moved from Proveedores.jsx)
   const [servicesModalOpen, setServicesModalOpen] = useState(false);
@@ -211,6 +212,7 @@ export default function Servicios() {
       setMensaje("Por favor, corrige los errores antes de continuar.");
       return;
     }
+    setIsSaving(true);
     const servicioData = {
       descripcion: servicioActual.descripcion,
       precioBase: Number(servicioActual.precioBase)
@@ -242,6 +244,7 @@ export default function Servicios() {
     } else {
       setMensaje(resultado.error || resultado.detail || resultado.mensaje || "Error desconocido");
     }
+    setIsSaving(false);
   };
 
   // Guardar modificación
@@ -253,6 +256,7 @@ export default function Servicios() {
       setMensaje("Por favor, corrige los errores antes de continuar.");
       return;
     }
+    setIsSaving(true);
     const servicioData = {
       descripcion: servicioActual.descripcion,
       precioBase: Number(servicioActual.precioBase)
@@ -292,6 +296,7 @@ export default function Servicios() {
       const resultado = await res.json();
       setMensaje(resultado.error || resultado.detail || resultado.mensaje || "Error desconocido");
     }
+    setIsSaving(false);
   };
 
   // Repuestos handlers
@@ -510,9 +515,12 @@ export default function Servicios() {
                   )}
                   {(modalModo === "modificar" || modalModo === "alta") && (
                     <div className="d-flex flex-column flex-md-row justify-content-end gap-2 mt-3">
-                      <button type="submit" className="btn btn-azul fw-bold">
-                        <i className="bi bi-save me-1"></i>
-                        {modalModo === "modificar" ? "Guardar cambios" : "Guardar"}
+                      <button type="submit" className="btn btn-azul fw-bold" disabled={isSaving}>
+                        {isSaving ? (
+                          <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Guardando...</>
+                        ) : (
+                          <><i className="bi bi-save me-1"></i>{modalModo === "modificar" ? "Guardar cambios" : "Guardar"}</>
+                        )}
                       </button>
                       <button
                         type="button"

@@ -29,6 +29,7 @@ export default function Clientes() {
   const [duplicateExists, setDuplicateExists] = useState(false);
   const [duplicateMsg, setDuplicateMsg] = useState("");
   const checkTimer = React.useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Permission context and action flags
   const permCtx = usePermission();
@@ -145,6 +146,7 @@ export default function Clientes() {
     e.preventDefault();
     if (!canCreate) { setMensaje('No tenés permiso para crear clientes.'); return; }
     const errors = validarCliente(form); setFormErrors(errors); if (Object.keys(errors).length) { setMensaje('Por favor, corrige los errores.'); return; }
+    setIsSaving(true);
     try {
       const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const j = await res.json().catch(() => ({}));
@@ -153,17 +155,20 @@ export default function Clientes() {
       setResultModal({ open: true, success: res.ok, title: res.ok ? 'Cliente creado' : 'Error', message: resultMessage || (res.ok ? 'Cliente creado correctamente.' : 'Ocurrió un error') });
       setModalVisible(false); fetchClientes();
     } catch (err) { console.warn(err); setMensaje('Error de conexión'); }
+    finally { setIsSaving(false); }
   };
 
   const handleUpdate = async e => {
     e.preventDefault(); if (!canModify) { setMensaje('No tenés permiso para modificar clientes.'); return; }
     const errors = validarCliente(form); setFormErrors(errors); if (Object.keys(errors).length) { setMensaje('Por favor, corrige los errores.'); return; }
+    setIsSaving(true);
     try {
       const res = await fetch(`${API_URL}/${editId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const j = await res.json().catch(() => ({}));
       if (res.ok) { setModalVisible(false); setEditId(null); fetchClientes(); } else { setMensaje(j.error || j.mensaje || 'Error desconocido'); }
       setResultModal({ open: true, success: res.ok, title: res.ok ? 'Cliente actualizado' : 'Error', message: j.mensaje || j.error || (res.ok ? 'Cliente actualizado correctamente.' : 'Error al actualizar cliente.') });
     } catch (err) { console.warn(err); setMensaje('Error de conexión'); }
+    finally { setIsSaving(false); }
   };
 
   const handleEliminar = (idCliente) => setConfirmDeleteCliente({ open: true, id: idCliente });
@@ -188,7 +193,8 @@ export default function Clientes() {
       } else if (res.status === 400 && resultado.error) {
         setBloqueoModal({ open: true, message: resultado.error });
       } else {
-        setMensaje(resultado.error || resultado.detail || resultado.mensaje || 'Error al eliminar cliente');
+        setMensaje(resultado.error || resultado.detail || resultado.mensaje || 'Error al eliminar cliente: No se pueden eliminar clientes asociados a órdenes activas.');
+        setResultModal({ open: true, success: false, title: 'Error', message: resultado.error || resultado.detail || resultado.mensaje || 'Error al eliminar cliente: No se pueden eliminar clientes asociados a órdenes activas.' });
       }
     } catch (err) {
       console.warn(err); setMensaje('Error de conexión');
@@ -302,7 +308,13 @@ export default function Clientes() {
                   {mensaje && <div className="alert alert-danger">{mensaje}</div>}
                   {(modalModo === 'modificar' || modalModo === 'alta') && (
                     <div className="d-flex flex-column flex-md-row justify-content-end gap-2 mt-3">
-                      <button type="submit" className="btn btn-azul fw-bold" disabled={dupChecking || duplicateExists}><i className="bi bi-save me-1"></i>{modalModo === 'modificar' ? 'Guardar cambios' : 'Guardar'}</button>
+                      <button type="submit" className="btn btn-azul fw-bold" disabled={dupChecking || duplicateExists || isSaving}>
+                        {isSaving ? (
+                          <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Guardando...</>
+                        ) : (
+                          <><i className="bi bi-save me-1"></i>{modalModo === 'modificar' ? 'Guardar cambios' : 'Guardar'}</>
+                        )}
+                      </button>
                       <button type="button" className="btn btn-dorado fw-bold" onClick={() => setModalVisible(false)}><i className="bi bi-x-circle me-1"></i>Cancelar</button>
                     </div>
                   )}

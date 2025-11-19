@@ -3,7 +3,9 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from 'react-dom';
 import MenuLateral from './MenuLateral';
 import ConfirmModal from './ConfirmModal';
+import ResultModal from './ResultModal';
 import PiePagina from './PiePagina';
+import SearchableSelect from './SearchableSelect';
 import { usePermission } from '../auth/PermissionContext';
 import { hasPermission } from '../utils/permissions';
 
@@ -51,7 +53,10 @@ export default function Dispositivos() {
     const [duplicateExists, setDuplicateExists] = useState(false);
     const [_duplicateMsg, setDuplicateMsg] = useState("");
     const [nuevoClienteSaving, setNuevoClienteSaving] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const clienteCheckTimer = React.useRef(null);
+    const [bloqueoModal, setBloqueoModal] = useState({ open: false, message: '' });
+    const [resultModal, setResultModal] = useState({ open: false, success: true, title: '', message: '' });
 
     // Debounced duplicate check (idTipoDoc + numeroDoc)
     useEffect(() => {
@@ -181,9 +186,26 @@ export default function Dispositivos() {
     const confirmDeleteDispositivoConfirm = async () => {
         const id = confirmDeleteDispositivo.id;
         if (!canDelete) { setMensaje('No tenés permiso para eliminar dispositivos.'); setConfirmDeleteDispositivo({ open: false, id: null }); return; }
-        await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-        fetchDispositivos();
-        setConfirmDeleteDispositivo({ open: false, id: null });
+        try {
+            const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+            const resultado = await res.json().catch(() => ({}));
+            if (res.ok) {
+                setMensaje('Dispositivo eliminado');
+                fetchDispositivos();
+                setResultModal({ open: true, success: true, title: 'Dispositivo eliminado', message: 'El dispositivo fue eliminado correctamente.' });
+            } else if (res.status === 400 && resultado.error) {
+                setBloqueoModal({ open: true, message: resultado.error });
+            } else {
+                setMensaje(resultado.error || resultado.detail || resultado.mensaje || 'Error al eliminar dispositivo: No se pueden eliminar dispositivos asociados a órdenes activas.');
+                setResultModal({ open: true, success: false, title: 'Error', message: resultado.error || resultado.detail || resultado.mensaje || 'Error al eliminar dispositivo: No se pueden eliminar dispositivos asociados a órdenes activas.' });
+            }
+        } catch (err) {
+            console.warn(err);
+            setMensaje('Error de conexión');
+            setResultModal({ open: true, success: false, title: 'Error', message: 'Error de conexión al eliminar dispositivo.' });
+        } finally {
+            setConfirmDeleteDispositivo({ open: false, id: null });
+        }
     };
 
     const handleReactivar = async (idDispositivo) => {
@@ -217,6 +239,7 @@ export default function Dispositivos() {
             setMensaje("Por favor, corrige los errores antes de continuar.");
             return;
         }
+        setIsSaving(true);
         try {
             const res = await fetch(API_URL, {
                 method: "POST",
@@ -241,6 +264,8 @@ export default function Dispositivos() {
             }
         } catch (err) {
             setMensaje("Error de red: " + (err.message || String(err)));
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -254,6 +279,7 @@ export default function Dispositivos() {
             setMensaje("Por favor, corrige los errores antes de continuar.");
             return;
         }
+        setIsSaving(true);
         try {
             const res = await fetch(`${API_URL}/${dispositivoActual.idDispositivo}`, {
                 method: "PUT",
@@ -276,6 +302,8 @@ export default function Dispositivos() {
             }
         } catch (err) {
             setMensaje("Error de red: " + (err.message || String(err)));
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -669,9 +697,12 @@ export default function Dispositivos() {
                                     )}
                                     {(modalModo === "modificar" || modalModo === "alta") && (
                                         <div className="d-flex flex-column flex-md-row justify-content-end gap-2 mt-3">
-                                            <button type="submit" className="btn btn-azul fw-bold">
-                                                <i className="bi bi-save me-1"></i>
-                                                {modalModo === "modificar" ? "Guardar cambios" : "Guardar"}
+                                            <button type="submit" className="btn btn-azul fw-bold" disabled={isSaving}>
+                                                {isSaving ? (
+                                                    <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Guardando...</>
+                                                ) : (
+                                                    <><i className="bi bi-save me-1"></i>{modalModo === "modificar" ? "Guardar cambios" : "Guardar"}</>
+                                                )}
                                             </button>
                                             <button
                                                 type="button"
@@ -750,6 +781,20 @@ export default function Dispositivos() {
                 message="¿Seguro que desea eliminar este dispositivo?"
                 onCancel={confirmDeleteDispositivoCancel}
                 onConfirm={confirmDeleteDispositivoConfirm}
+            />
+            <ConfirmModal
+                open={bloqueoModal.open}
+                title="No se puede eliminar"
+                message={bloqueoModal.message}
+                onCancel={() => setBloqueoModal({ open: false, message: '' })}
+                onConfirm={() => setBloqueoModal({ open: false, message: '' })}
+            />
+            <ResultModal
+                open={resultModal.open}
+                title={resultModal.title}
+                message={resultModal.message}
+                success={resultModal.success}
+                onClose={() => setResultModal(prev => ({ ...prev, open: false }))}
             />
         </div>
     );

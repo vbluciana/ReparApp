@@ -100,6 +100,9 @@ function Ordenes() {
   const [modalMensajeGlobal, setModalMensajeGlobal] = useState(null);
   const [isSavingOrden, setIsSavingOrden] = useState(false);
   const [isMarkingAbandoned, setIsMarkingAbandoned] = useState(false);
+  const [isMarkingRetirada, setIsMarkingRetirada] = useState(false);
+  const [isAcceptingPresupuesto, setIsAcceptingPresupuesto] = useState(false);
+  const [isRejectingPresupuesto, setIsRejectingPresupuesto] = useState(false);
   const [showMarkAbandonedModal, setShowMarkAbandonedModal] = useState(false);
   const [terminarModalOpen, setTerminarModalOpen] = useState(false);
   const [terminarOrden, setTerminarOrden] = useState(null);
@@ -169,6 +172,9 @@ function Ordenes() {
   const [nuevoClienteErrors, setNuevoClienteErrors] = useState({});
   const [nuevoDispositivoErrors, setNuevoDispositivoErrors] = useState({});
   const [nuevoDetalleErrors, setNuevoDetalleErrors] = useState({}); // Agregar esta línea si no está presente (después de const [nuevoDispositivoErrors, setNuevoDispositivoErrors] = useState({});)
+  const [isSavingCliente, setIsSavingCliente] = useState(false);
+  const [isSavingDispositivo, setIsSavingDispositivo] = useState(false);
+  const [isSavingHistorial, setIsSavingHistorial] = useState(false);
 
   // State for preserving form data when redirecting
   const [preservedFormData, setPreservedFormData] = useState(null);
@@ -355,7 +361,10 @@ function Ordenes() {
   };
 
   // --- Manejadores de Modal ---
-  const handleModalClose = () => setModalVisible(false);
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setNuevoDetalleErrors({}); // Limpiar errores de detalles al cerrar modal
+  };
 
   const handleAgregarClick = () => {
     if (!canCreate) { setMensaje('No tenés permiso para crear órdenes.'); return; }
@@ -494,6 +503,7 @@ function Ordenes() {
 
   const handleMarcarRetirada = (nro) => {
     if (!nro) return;
+    setIsMarkingRetirada(true);
     // Llamamos al nuevo endpoint que marca la orden como Retirada
     fetch(`${API_URL}/${nro}/marcar-retirada`, {
       method: 'POST',
@@ -516,6 +526,9 @@ function Ordenes() {
         console.error('Error al marcar retirada:', err);
         setMensaje(`No se pudo marcar retirada: ${err.message}`);
         setModalMensaje({ tipo: 'danger', texto: `No se pudo marcar retirada: ${err.message}` });
+      })
+      .finally(() => {
+        setIsMarkingRetirada(false);
       });
   };
 
@@ -559,6 +572,7 @@ function Ordenes() {
   // Acciones desde el modal de presupuesto para administradores de ventas
   const handlePresupuestoAceptar = (nro) => {
     console.log('Llamando a aceptar presupuesto para orden', nro);
+    setIsAcceptingPresupuesto(true);
     fetch(`${API_URL}/${nro}/presupuesto/aceptar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -586,11 +600,15 @@ function Ordenes() {
       .catch(err => {
         console.error('Error aceptar presupuesto:', err);
         setModalMensaje({ tipo: 'danger', texto: `Error al aceptar presupuesto: ${err.message || err}` });
+      })
+      .finally(() => {
+        setIsAcceptingPresupuesto(false);
       });
   };
 
   const handlePresupuestoRechazar = (nro) => {
     console.log('Llamando a rechazar presupuesto para orden', nro);
+    setIsRejectingPresupuesto(true);
     fetch(`${API_URL}/${nro}/presupuesto/rechazar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -617,6 +635,9 @@ function Ordenes() {
       .catch(err => {
         console.error('Error rechazar presupuesto:', err);
         setModalMensaje({ tipo: 'danger', texto: `Error al rechazar presupuesto: ${err.message || err}` });
+      })
+      .finally(() => {
+        setIsRejectingPresupuesto(false);
       });
   };
 
@@ -887,6 +908,13 @@ function Ordenes() {
             updatedDetalle.codigoRepuesto = "";
             updatedDetalle.repuestoProveedor = "";
             setNuevoDetalle(updatedDetalle);
+            
+            // Limpiar error de servicio si hay errores previos
+            if (Object.keys(nuevoDetalleErrors).length > 0) {
+              const updatedErrors = { ...nuevoDetalleErrors };
+              delete updatedErrors.codigoServicio;
+              setNuevoDetalleErrors(updatedErrors);
+            }
           })
           .catch(err => {
             console.error("Error al cargar repuestos:", err);
@@ -896,6 +924,13 @@ function Ordenes() {
             updatedDetalle.codigoRepuesto = "";
             updatedDetalle.repuestoProveedor = "";
             setNuevoDetalle(updatedDetalle);
+            
+            // Limpiar error de servicio si hay errores previos (incluso si falla el fetch)
+            if (Object.keys(nuevoDetalleErrors).length > 0) {
+              const updatedErrors = { ...nuevoDetalleErrors };
+              delete updatedErrors.codigoServicio;
+              setNuevoDetalleErrors(updatedErrors);
+            }
           });
       } else {
         setAvailableRepuestos([]);
@@ -965,7 +1000,28 @@ function Ordenes() {
     updatedDetalle.subtotal = costoServ + costoRep;
 
     setNuevoDetalle(updatedDetalle);
-    setNuevoDetalleErrors(validarNuevoDetalle(updatedDetalle)); // Agrega validación en tiempo real
+    
+    // Limpiar errores solo si ya se intentó agregar antes (si hay errores previos)
+    if (Object.keys(nuevoDetalleErrors).length > 0) {
+      const updatedErrors = { ...nuevoDetalleErrors };
+      
+      // Limpiar error de servicio si se seleccionó
+      if (updatedDetalle.codigoServicio) {
+        delete updatedErrors.codigoServicio;
+      }
+      
+      // Limpiar error de repuesto si se seleccionó
+      if (updatedDetalle.codigoRepuesto) {
+        delete updatedErrors.codigoRepuesto;
+      }
+      
+      // Limpiar error de proveedor si se seleccionó
+      if (updatedDetalle.repuestoProveedor) {
+        delete updatedErrors.repuestoProveedor;
+      }
+      
+      setNuevoDetalleErrors(updatedErrors);
+    }
   };
 
   // Solicitar aprobación: cambiar estado a PendienteDeAprobacion
@@ -1318,6 +1374,7 @@ function Ordenes() {
     }
     const nro = actualizarHistorialOrden.nroDeOrden;
     setMensaje('Guardando historial...');
+    setIsSavingHistorial(true);
     fetch(`${API_URL}/${nro}/actualizaciones`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1338,7 +1395,8 @@ function Ordenes() {
       .catch(err => {
         console.error('Error guardando historial:', err);
         setMensaje(`No se pudo guardar el historial: ${err.message}`);
-      });
+      })
+      .finally(() => setIsSavingHistorial(false));
   };
 
   const handleNuevoClienteChange = (e) => {
@@ -1359,6 +1417,7 @@ function Ordenes() {
     if (Object.keys(errors).length > 0) {
       return;
     }
+    setIsSavingCliente(true);
     fetch(CLIENTES_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1378,7 +1437,8 @@ function Ordenes() {
         setNuevoClienteErrors({});
         setResultModal({ open: true, success: true, title: 'Cliente creado', message: 'Cliente creado correctamente.' });
       })
-        .catch(err => { console.error("Error saving cliente:", err); setResultModal({ open: true, success: false, title: 'Error', message: err.message || 'No se pudo crear el cliente' }); });
+      .catch(err => { console.error("Error saving cliente:", err); setResultModal({ open: true, success: false, title: 'Error', message: err.message || 'No se pudo crear el cliente' }); })
+      .finally(() => setIsSavingCliente(false));
   };
 
   const handleGuardarDispositivo = () => {
@@ -1387,6 +1447,7 @@ function Ordenes() {
     if (Object.keys(errors).length > 0) {
       return;
     }
+    setIsSavingDispositivo(true);
     fetch(DISPOSITIVOS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1408,7 +1469,8 @@ function Ordenes() {
         setNuevoDispositivoErrors({});
         setResultModal({ open: true, success: true, title: 'Dispositivo creado', message: 'Dispositivo creado correctamente.' });
       })
-        .catch(err => { console.error("Error saving dispositivo:", err); setResultModal({ open: true, success: false, title: 'Error', message: err.message || 'No se pudo crear el dispositivo' }); });
+      .catch(err => { console.error("Error saving dispositivo:", err); setResultModal({ open: true, success: false, title: 'Error', message: err.message || 'No se pudo crear el dispositivo' }); })
+      .finally(() => setIsSavingDispositivo(false));
   };
 
   // Al crear o modificar un detalle, debes enviar el campo repuesto_proveedor_id (no cuitProveedor/codigoRepuesto) al backend.
@@ -1617,8 +1679,17 @@ function Ordenes() {
                               <button className="btn btn-sm btn-verdeAgua fw-bold me-1" onClick={() => handleConsultar(o)}>
                                 <i className="bi bi-search me-1"></i>Consultar
                               </button>
-                              <button className="btn btn-sm btn-dorado fw-bold me-1" style={{ padding: '0.25rem .5rem', fontSize: '0.85rem' }} onClick={() => handleMarcarRetirada(o.nroDeOrden)}>
-                                <i className="bi bi-box-arrow-in-right me-1"></i>Marcar retirada
+                              <button 
+                                className="btn btn-sm btn-dorado fw-bold me-1" 
+                                style={{ padding: '0.25rem .5rem', fontSize: '0.85rem' }} 
+                                onClick={() => handleMarcarRetirada(o.nroDeOrden)}
+                                disabled={isMarkingRetirada}
+                              >
+                                {isMarkingRetirada ? (
+                                  <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Procesando...</>
+                                ) : (
+                                  <><i className="bi bi-box-arrow-in-right me-1"></i>Marcar retirada</>
+                                )}
                               </button>
                               {isSalesAdmin && !isTecnico && (
                                 <button className="btn btn-sm btn-rojo fw-bold me-1" onClick={() => handleGenerarComprobante(o.nroDeOrden)}>
@@ -1689,9 +1760,9 @@ function Ordenes() {
                             <td>{d.servicioDescripcion}</td>
                             <td>{d.repuestoDescripcion}</td>
                             <td>{d.proveedorRazonSocial || (d.proveedor && d.proveedor.razonSocial)}</td>
-                            <td>{Number(d.costoServicio || 0).toFixed(2)}</td>
-                            <td>{Number(d.costoRepuesto || 0).toFixed(2)}</td>
-                            <td>{Number(d.subtotal || 0).toFixed(2)}</td>
+                            <td>${Number(d.costoServicio || 0).toFixed(2)}</td>
+                            <td>${Number(d.costoRepuesto || 0).toFixed(2)}</td>
+                            <td>${Number(d.subtotal || 0).toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1706,11 +1777,29 @@ function Ordenes() {
                 <button type="button" className="btn btn-dorado" onClick={() => setPresupuestoModalVisible(false)}>Cerrar</button>
                 {isSalesAdmin && (
                   <>
-                    <button type="button" className="btn btn-success me-2" onClick={() => handlePresupuestoAceptar(presupuestoNroOrden)}>
-                      Aceptar
+                    <button 
+                      type="button" 
+                      className="btn btn-success me-2" 
+                      onClick={() => handlePresupuestoAceptar(presupuestoNroOrden)}
+                      disabled={isAcceptingPresupuesto || isRejectingPresupuesto}
+                    >
+                      {isAcceptingPresupuesto ? (
+                        <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Procesando...</>
+                      ) : (
+                        'Aceptar'
+                      )}
                     </button>
-                    <button type="button" className="btn btn-danger" onClick={() => handlePresupuestoRechazar(presupuestoNroOrden)}>
-                      Rechazar
+                    <button 
+                      type="button" 
+                      className="btn btn-danger" 
+                      onClick={() => handlePresupuestoRechazar(presupuestoNroOrden)}
+                      disabled={isAcceptingPresupuesto || isRejectingPresupuesto}
+                    >
+                      {isRejectingPresupuesto ? (
+                        <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Procesando...</>
+                      ) : (
+                        'Rechazar'
+                      )}
                     </button>
                   </>
                 )}
@@ -1865,9 +1954,9 @@ function Ordenes() {
                             <td>{detalle.servicioDescripcion}</td>
                             <td>{detalle.repuestoDescripcion}</td>
                             <td>{detalle.proveedorRazonSocial}</td>
-                            <td>{detalle.costoServicio}</td>
-                            <td>{detalle.costoRepuesto}</td>
-                            <td>{detalle.subtotal}</td>
+                            <td>${detalle.costoServicio}</td>
+                            <td>${detalle.costoRepuesto}</td>
+                            <td>${detalle.subtotal}</td>
                             {/* Ocultar acciones si es Asistente de ventas */}
                             {modalModo !== 'consultar' && !isSalesAdmin && (
                               <td>
@@ -1962,17 +2051,17 @@ function Ordenes() {
                         </div>
                         <div className="col">
                           <label>Costo Serv.</label>
-                          <input name="costoServicio" value={nuevoDetalle.costoServicio} className="form-control" readOnly />
+                          <input name="costoServicio" value={nuevoDetalle.costoServicio ? `$${nuevoDetalle.costoServicio}` : ''} className="form-control" readOnly />
                           {nuevoDetalleErrors.costoServicio && <div className="input-error-message">{nuevoDetalleErrors.costoServicio}</div>}
                         </div>
                         <div className="col">
                           <label>Costo Rep.</label>
-                          <input name="costoRepuesto" value={nuevoDetalle.costoRepuesto} className="form-control" readOnly />
+                          <input name="costoRepuesto" value={nuevoDetalle.costoRepuesto ? `$${nuevoDetalle.costoRepuesto}` : ''} className="form-control" readOnly />
                           {nuevoDetalleErrors.costoRepuesto && <div className="input-error-message">{nuevoDetalleErrors.costoRepuesto}</div>}
                         </div>
                         <div className="col">
                           <label>Subtotal</label>
-                          <input name="subtotal" value={nuevoDetalle.subtotal} className="form-control" readOnly />
+                          <input name="subtotal" value={nuevoDetalle.subtotal ? `$${nuevoDetalle.subtotal}` : ''} className="form-control" readOnly />
                           {nuevoDetalleErrors.subtotal && <div className="input-error-message">{nuevoDetalleErrors.subtotal}</div>}
                         </div>
                         <div className="col-auto d-flex gap-2">
@@ -1990,6 +2079,7 @@ function Ordenes() {
                                 costoRepuesto: "",
                                 subtotal: ""
                               });
+                              setNuevoDetalleErrors({}); // Limpiar errores al cancelar edición
                               setMensaje('Edición cancelada.');
                             }}>
                               Cancelar
@@ -2226,7 +2316,19 @@ function Ordenes() {
                   </fieldset>
                   <div className="modal-footer mt-3">
                     <button type="button" className="btn btn-dorado fw-bold" onClick={() => setShowAddClienteModal(false)}><i className="bi bi-x-circle me-1"></i>Cancelar</button>
-                    <button type="submit" className="btn btn-azul fw-bold"><i className="bi bi-save me-1"></i>Guardar Cliente</button>
+                    <button type="submit" className="btn btn-azul fw-bold" disabled={isSavingCliente}>
+                      {isSavingCliente ? (
+                        <>
+                          <i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-save me-1"></i>
+                          Guardar Cliente
+                        </>
+                      )}
+                    </button>
                   </div>
                 </form>
               </div>
@@ -2287,7 +2389,19 @@ function Ordenes() {
                   </fieldset>
                   <div className="modal-footer mt-3">
                     <button type="button" className="btn btn-dorado fw-bold" onClick={() => setShowAddDispositivoModal(false)}><i className="bi bi-x-circle me-1"></i>Cancelar</button>
-                    <button type="submit" className="btn btn-azul fw-bold"><i className="bi bi-save me-1"></i>Guardar Dispositivo</button>
+                    <button type="submit" className="btn btn-azul fw-bold" disabled={isSavingDispositivo}>
+                      {isSavingDispositivo ? (
+                        <>
+                          <i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-save me-1"></i>
+                          Guardar Dispositivo
+                        </>
+                      )}
+                    </button>
                   </div>
                 </form>
               </div>
@@ -2429,7 +2543,19 @@ function Ordenes() {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-dorado" onClick={() => setShowActualizarHistorialModal(false)}>Cancelar</button>
-                <button type="button" className="btn btn-azul" onClick={handleEnviarHistorial}>Guardar</button>
+                <button type="button" className="btn btn-azul" onClick={handleEnviarHistorial} disabled={isSavingHistorial}>
+                  {isSavingHistorial ? (
+                    <>
+                      <i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-save me-1"></i>
+                      Guardar
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

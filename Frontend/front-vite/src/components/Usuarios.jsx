@@ -29,6 +29,7 @@ export default function Usuarios() {
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [search, setSearch] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalModo, setModalModo] = useState("alta"); // "alta" | "modificar" | "consultar"
   const [formErrors, setFormErrors] = useState({});
@@ -119,6 +120,7 @@ export default function Usuarios() {
       setMensaje("Por favor, corrige los errores antes de continuar: " + Object.values(errors).join(", "));
       return;
     }
+    setIsSaving(true);
     fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -152,7 +154,8 @@ export default function Usuarios() {
         .catch(_error => {
           console.warn('Usuarios: handleSubmit error', _error);
           setMensaje(_error.message);
-        });
+        })
+        .finally(() => setIsSaving(false));
   }
 
   const handleUpdate = async (e) => {
@@ -163,6 +166,7 @@ export default function Usuarios() {
       setMensaje("Por favor, corrige los errores antes de continuar: " + Object.values(errors).join(", "));
       return;
     }
+    setIsSaving(true);
     try {
       const body = {
         nombreUsuario: form.nombreUsuario,
@@ -189,6 +193,8 @@ export default function Usuarios() {
       }
     } catch (error) {
       setMensaje("Error de conexión: " + error.message);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -475,9 +481,12 @@ export default function Usuarios() {
                   )}
                   {(modalModo === "modificar" || modalModo === "alta") && (
                     <div className="d-flex flex-column flex-md-row justify-content-end gap-2 mt-3">
-                      <button type="submit" className="btn btn-azul fw-bold">
-                        <i className="bi bi-save me-1"></i>
-                        {modalModo === "modificar" ? "Guardar cambios" : "Guardar"}
+                      <button type="submit" className="btn btn-azul fw-bold" disabled={isSaving}>
+                        {isSaving ? (
+                          <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Guardando...</>
+                        ) : (
+                          <><i className="bi bi-save me-1"></i>{modalModo === "modificar" ? "Guardar cambios" : "Guardar"}</>
+                        )}
                       </button>
                       <button
                         type="button"

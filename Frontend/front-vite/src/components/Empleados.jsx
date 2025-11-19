@@ -40,6 +40,7 @@ export default function Empleados() {
   const [debouncedSearchName, setDebouncedSearchName] = useState('');
   const [searchCargoFilter, setSearchCargoFilter] = useState('');
   const [clienteActual, setClienteActual] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const permCtx = usePermission();
   const identity = permCtx ? permCtx.identity : null;
   // Assumptions: permiso 47 = ver/listar empleados, 48 = crear, 49 = modificar, 50 = eliminar/reactivar
@@ -118,6 +119,7 @@ export default function Empleados() {
       setMensaje("Por favor, corrige los errores antes de continuar.");
       return;
     }
+    setIsSaving(true);
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -135,6 +137,8 @@ export default function Empleados() {
     } catch (err) {
       console.warn('Empleados: submit error', err);
       setMensaje("Error de conexión");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -147,6 +151,7 @@ export default function Empleados() {
       setMensaje("Por favor, corrige los errores antes de continuar.");
       return;
     }
+    setIsSaving(true);
     try {
       const res = await fetch(`${API_URL}/${form.idEmpleado}`, {
         method: "PUT",
@@ -164,6 +169,8 @@ export default function Empleados() {
     } catch (err) {
         console.warn('Empleados: update error', err);
         setMensaje("Error de conexión");
+      } finally {
+        setIsSaving(false);
       }
   };
 
@@ -539,9 +546,12 @@ export default function Empleados() {
                   )}
                   {(modalModo === "modificar" || modalModo === "alta") && (
                     <div className="d-flex flex-column flex-md-row justify-content-end gap-2 mt-3">
-                      <button type="submit" className="btn btn-azul fw-bold">
-                        <i className="bi bi-save me-1"></i>
-                        {modalModo === "modificar" ? "Guardar cambios" : "Guardar"}
+                      <button type="submit" className="btn btn-azul fw-bold" disabled={isSaving}>
+                        {isSaving ? (
+                          <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Guardando...</>
+                        ) : (
+                          <><i className="bi bi-save me-1"></i>{modalModo === "modificar" ? "Guardar cambios" : "Guardar"}</>
+                        )}
                       </button>
                       <button
                         type="button"
