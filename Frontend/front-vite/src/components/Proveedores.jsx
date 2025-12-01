@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import MenuLateral from './MenuLateral';
 import ConfirmModal from './ConfirmModal';
+import ResultModal from './ResultModal';
 import { usePermission } from '../auth/PermissionContext';
 import { hasPermission } from '../utils/permissions';
 
@@ -60,6 +61,7 @@ function Proveedores() {
   const [duplicateMsg, setDuplicateMsg] = useState("");
   const checkTimer = React.useRef(null);
   const [confirmDeleteProveedor, setConfirmDeleteProveedor] = useState({ open: false, cuil: null });
+  const [resultModal, setResultModal] = useState({ open: false, success: true, title: '', message: '' });
 
   // Cargar proveedores
   const fetchVisibleProveedores = useCallback(() => {
@@ -141,15 +143,16 @@ function Proveedores() {
         return data;
       })
       .then(() => {
-        setForm({ cuil: "", razonSocial: "", telefono: "" });
-        setForm({ cuil: "", razonSocial: "", telefonoResponsable: "", direccion: "", nombreResponsable: "", mailResponsable: "" });
-        setMostrarFormulario(false);
+        setResultModal({ open: true, success: true, title: 'Proveedor creado', message: 'Proveedor creado correctamente.' });
+        setModalVisible(false);
         setMensaje("");
-        fetch(`${API_URL}?activos=${mostrarInactivos ? "false" : "true"}`)
-          .then(res => res.json())
-          .then(data => setProveedores(data));
+        fetchVisibleProveedores();
       })
-      .catch(err => { console.warn('Proveedores: submit error', err); setMensaje(err.message); })
+      .catch(err => { 
+        console.error('Error al crear proveedor:', err); 
+        setMensaje(err.message);
+        setResultModal({ open: true, success: false, title: 'Error', message: err.message || 'Error al crear proveedor' });
+      })
       .finally(() => setIsSaving(false));
   }
 
@@ -718,6 +721,14 @@ function Proveedores() {
         message="¿Está seguro de que desea eliminar este proveedor? Esta acción también removerá sus relaciones asociadas."
         onCancel={confirmDeleteProveedorCancel}
         onConfirm={confirmDeleteProveedorConfirm}
+      />
+      
+      <ResultModal
+        open={resultModal.open}
+        success={resultModal.success}
+        title={resultModal.title}
+        message={resultModal.message}
+        onClose={() => setResultModal(prev => ({ ...prev, open: false }))}
       />
     </div>
   );

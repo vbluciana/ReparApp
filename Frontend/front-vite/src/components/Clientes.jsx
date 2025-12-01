@@ -150,11 +150,11 @@ export default function Clientes() {
     try {
       const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const j = await res.json().catch(() => ({}));
-      const resultMessage = j.mensaje || j.error || '';
+      const resultMessage = j.error || j.mensaje || (j.detail ? `${j.error || 'Error'}: ${j.detail}` : '');
       setMensaje(resultMessage);
       setResultModal({ open: true, success: res.ok, title: res.ok ? 'Cliente creado' : 'Error', message: resultMessage || (res.ok ? 'Cliente creado correctamente.' : 'Ocurrió un error') });
-      setModalVisible(false); fetchClientes();
-    } catch (err) { console.warn(err); setMensaje('Error de conexión'); }
+      if (res.ok) { setModalVisible(false); fetchClientes(); }
+    } catch (err) { console.error('Error al crear cliente:', err); setMensaje('Error de conexión'); setResultModal({ open: true, success: false, title: 'Error', message: 'Error de conexión al crear cliente' }); }
     finally { setIsSaving(false); }
   };
 

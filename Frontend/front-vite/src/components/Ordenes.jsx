@@ -99,10 +99,11 @@ function Ordenes() {
   const [modalMensaje, setModalMensaje] = useState(null);
   const [modalMensajeGlobal, setModalMensajeGlobal] = useState(null);
   const [isSavingOrden, setIsSavingOrden] = useState(false);
+  const [isConfirmingOrden, setIsConfirmingOrden] = useState(false);
   const [isMarkingAbandoned, setIsMarkingAbandoned] = useState(false);
-  const [isMarkingRetirada, setIsMarkingRetirada] = useState(false);
-  const [isAcceptingPresupuesto, setIsAcceptingPresupuesto] = useState(false);
-  const [isRejectingPresupuesto, setIsRejectingPresupuesto] = useState(false);
+  const [markingRetiradaOrden, setMarkingRetiradaOrden] = useState(null); // Guarda el nro de orden siendo procesada
+  const [acceptingPresupuestoOrden, setAcceptingPresupuestoOrden] = useState(null); // Guarda el nro de orden siendo procesada
+  const [rejectingPresupuestoOrden, setRejectingPresupuestoOrden] = useState(null); // Guarda el nro de orden siendo procesada
   const [showMarkAbandonedModal, setShowMarkAbandonedModal] = useState(false);
   const [terminarModalOpen, setTerminarModalOpen] = useState(false);
   const [terminarOrden, setTerminarOrden] = useState(null);
@@ -505,7 +506,7 @@ function Ordenes() {
 
   const handleMarcarRetirada = (nro) => {
     if (!nro) return;
-    setIsMarkingRetirada(true);
+    setMarkingRetiradaOrden(nro);
     // Llamamos al nuevo endpoint que marca la orden como Retirada
     fetch(`${API_URL}/${nro}/marcar-retirada`, {
       method: 'POST',
@@ -530,7 +531,7 @@ function Ordenes() {
         setModalMensaje({ tipo: 'danger', texto: `No se pudo marcar retirada: ${err.message}` });
       })
       .finally(() => {
-        setIsMarkingRetirada(false);
+        setMarkingRetiradaOrden(null);
       });
   };
 
@@ -574,7 +575,7 @@ function Ordenes() {
   // Acciones desde el modal de presupuesto para administradores de ventas
   const handlePresupuestoAceptar = (nro) => {
     console.log('Llamando a aceptar presupuesto para orden', nro);
-    setIsAcceptingPresupuesto(true);
+    setAcceptingPresupuestoOrden(nro);
     fetch(`${API_URL}/${nro}/presupuesto/aceptar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -604,13 +605,13 @@ function Ordenes() {
         setModalMensaje({ tipo: 'danger', texto: `Error al aceptar presupuesto: ${err.message || err}` });
       })
       .finally(() => {
-        setIsAcceptingPresupuesto(false);
+        setAcceptingPresupuestoOrden(null);
       });
   };
 
   const handlePresupuestoRechazar = (nro) => {
     console.log('Llamando a rechazar presupuesto para orden', nro);
-    setIsRejectingPresupuesto(true);
+    setRejectingPresupuestoOrden(nro);
     fetch(`${API_URL}/${nro}/presupuesto/rechazar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -639,7 +640,7 @@ function Ordenes() {
         setModalMensaje({ tipo: 'danger', texto: `Error al rechazar presupuesto: ${err.message || err}` });
       })
       .finally(() => {
-        setIsRejectingPresupuesto(false);
+        setRejectingPresupuestoOrden(null);
       });
   };
 
@@ -1060,10 +1061,15 @@ function Ordenes() {
       // Determine created/updated order number
       const nro = saveResult?.nroDeOrden || saveResult?.nro || form?.nroDeOrden || 'nueva';
       const nuevoEstado = form?.estado || (modalModo === 'alta' ? 'En Diagnóstico' : 'Actualizada');
-      notifyEstadoCambio(nro, nuevoEstado, null, { inModal: true, refresh: true });
-
-  // Show result modal for feedback
-  setResultModal({ open: true, success: true, title: modalModo === 'alta' ? 'Orden creada' : 'Orden actualizada', message: `Orden #${nro} guardada correctamente.` });
+      
+      // Refresh data
+      fetchOrdenes();
+      
+      // Show result modal for feedback (solo uno)
+      setResultModal({ open: true, success: true, title: modalModo === 'alta' ? 'Orden creada' : 'Orden actualizada', message: `Orden #${nro} guardada correctamente.` });
+      
+      // Cerrar el modal de edición inmediatamente
+      handleModalClose();
 
       // If this was a newly created order, attempt to automatically send the comprobante
       if (modalModo === 'alta') {
@@ -1115,8 +1121,6 @@ function Ordenes() {
           setModalMensaje({ tipo: 'warning', texto: 'Orden guardada, pero no se pudo enviar automáticamente el comprobante. Revisá la consola para más detalles.' });
         }
       }
-
-  handleModalClose();
     } catch (err) {
       console.error('[Ordenes.jsx] handleSubmit error:', err);
       // Mostrar el error en el modal (más visible)
@@ -1200,7 +1204,7 @@ function Ordenes() {
   // Handler que guarda cambios y luego solicita aprobación (usado por el botón Confirmar)
   const handleConfirmarYGuardar = async () => {
     console.log('[Ordenes.jsx] handleConfirmarYGuardar clicked. detalles.length=', detalles ? detalles.length : 0, 'form.nroDeOrden=', form?.nroDeOrden);
-    setIsSavingOrden(true);
+    setIsConfirmingOrden(true);
     setModalMensaje({ tipo: 'info', texto: 'Guardando...' });
     try {
       await saveOrden();
@@ -1217,7 +1221,7 @@ function Ordenes() {
       setModalMensaje({ tipo: 'danger', texto: err.message || 'Error al guardar antes de confirmar' });
       setResultModal({ open: true, success: false, title: 'Error al guardar', message: err.message || 'Error al guardar antes de confirmar' });
     } finally {
-      setIsSavingOrden(false);
+      setIsConfirmingOrden(false);
     }
   };
 
@@ -1685,9 +1689,9 @@ function Ordenes() {
                                 className="btn btn-sm btn-dorado fw-bold me-1" 
                                 style={{ padding: '0.25rem .5rem', fontSize: '0.85rem' }} 
                                 onClick={() => handleMarcarRetirada(o.nroDeOrden)}
-                                disabled={isMarkingRetirada}
+                                disabled={markingRetiradaOrden === o.nroDeOrden}
                               >
-                                {isMarkingRetirada ? (
+                                {markingRetiradaOrden === o.nroDeOrden ? (
                                   <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Procesando...</>
                                 ) : (
                                   <><i className="bi bi-box-arrow-in-right me-1"></i>Marcar retirada</>
@@ -1783,9 +1787,9 @@ function Ordenes() {
                       type="button" 
                       className="btn btn-success me-2" 
                       onClick={() => handlePresupuestoAceptar(presupuestoNroOrden)}
-                      disabled={isAcceptingPresupuesto || isRejectingPresupuesto}
+                      disabled={acceptingPresupuestoOrden === presupuestoNroOrden || rejectingPresupuestoOrden === presupuestoNroOrden}
                     >
-                      {isAcceptingPresupuesto ? (
+                      {acceptingPresupuestoOrden === presupuestoNroOrden ? (
                         <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Procesando...</>
                       ) : (
                         'Aceptar'
@@ -1795,9 +1799,9 @@ function Ordenes() {
                       type="button" 
                       className="btn btn-danger" 
                       onClick={() => handlePresupuestoRechazar(presupuestoNroOrden)}
-                      disabled={isAcceptingPresupuesto || isRejectingPresupuesto}
+                      disabled={acceptingPresupuestoOrden === presupuestoNroOrden || rejectingPresupuestoOrden === presupuestoNroOrden}
                     >
-                      {isRejectingPresupuesto ? (
+                      {rejectingPresupuestoOrden === presupuestoNroOrden ? (
                         <><i className="bi bi-arrow-repeat spinner-border spinner-border-sm me-1"></i>Procesando...</>
                       ) : (
                         'Rechazar'
@@ -2177,10 +2181,10 @@ function Ordenes() {
                       type="button"
                       className="btn btn-dorado me-2"
                       onClick={() => handleConfirmarYGuardar()}
-                      disabled={isSavingOrden || !(detalles && detalles.length >= 1)}
+                      disabled={isConfirmingOrden || !(detalles && detalles.length >= 1)}
                       title={!(detalles && detalles.length >= 1) ? 'Debe agregar al menos 1 detalle antes de confirmar' : ''}
                     >
-                      {isSavingOrden ? (
+                      {isConfirmingOrden ? (
                         <>
                           <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                           Guardando...

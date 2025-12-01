@@ -19,7 +19,11 @@ def validar_cuit_cuil(cuit):
     return str(cuit).isdigit() and len(str(cuit)) == 11
 
 def validar_telefono(telefono):
-    return str(telefono).isdigit() and 10 <= len(str(telefono)) <= 11
+    # Acepta números de 6 a 15 dígitos para soportar diferentes formatos
+    # Ejemplos válidos: 351234567 (9 dígitos), 3512345678 (10 dígitos), 
+    #                   543513538955 (12 dígitos con código de país 54)
+    telefono_limpio = str(telefono).strip()
+    return telefono_limpio.isdigit() and 6 <= len(telefono_limpio) <= 15
 
 def validar_email(email):
     return bool(re.match(r'^[^@]+@[^@]+\.[^@]+$', str(email)))
@@ -71,6 +75,9 @@ def registrar_cliente():
             'activo': cliente.activo
         }), 201
     except Exception as e:
+        import traceback
+        print("Error al crear cliente:")
+        print(traceback.format_exc())
         return jsonify({"error": "No se pudo crear cliente", "detail": str(e)}), 500
 
 @bp.route("/clientes", methods=["GET"])
