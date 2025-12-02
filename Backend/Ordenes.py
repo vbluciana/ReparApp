@@ -940,6 +940,27 @@ def generar_pdf_orden(nroDeOrden):
         ]))
         elements.append(footer_table)
         
+        # Disclaimer de responsabilidad
+        elements.append(Spacer(1, 12))
+        disclaimer_style = ParagraphStyle(
+            'Disclaimer',
+            parent=styles['Normal'],
+            fontSize=7,
+            textColor=colors.HexColor('#333333'),
+            alignment=4,  # Justified
+            leading=9,
+            leftIndent=10,
+            rightIndent=10
+        )
+        disclaimer_text = (
+            "<b>IMPORTANTE:</b> Para retirar el producto deberá presentarse este comprobante. "
+            "Transcurrido 30 días de la fecha de la presente facturaremos por almacenaje y el precio de la reparación "
+            "será actualizado según la lista de precios vigentes. Si el producto no fuera retirado dentro del plazo "
+            "de 60 días de la fecha de la presente será considerado abandonado en los términos de los artículos 2525 y 2526 "
+            "del Código Civil, quedando facultados a darle el destino que consideremos pertinente."
+        )
+        elements.append(Paragraph(disclaimer_text, disclaimer_style))
+        
         # Generar PDF
         doc.build(elements)
         buffer.seek(0)
@@ -1161,6 +1182,27 @@ def _build_pdf_bytes(nroDeOrden):
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
     ]))
     elements.append(footer_table)
+
+    # Disclaimer de responsabilidad
+    elements.append(Spacer(1, 12))
+    disclaimer_style = ParagraphStyle(
+        'Disclaimer',
+        parent=styles['Normal'],
+        fontSize=7,
+        textColor=colors.HexColor('#333333'),
+        alignment=4,  # Justified
+        leading=9,
+        leftIndent=10,
+        rightIndent=10
+    )
+    disclaimer_text = (
+        "<b>IMPORTANTE:</b> Para retirar el producto deberá presentarse este comprobante. "
+        "Transcurrido 30 días de la fecha de la presente facturaremos por almacenaje y el precio de la reparación "
+        "será actualizado según la lista de precios vigentes. Si el producto no fuera retirado dentro del plazo "
+        "de 60 días de la fecha de la presente será considerado abandonado en los términos de los artículos 2525 y 2526 "
+        "del Código Civil, quedando facultados a darle el destino que consideremos pertinente."
+    )
+    elements.append(Paragraph(disclaimer_text, disclaimer_style))
 
     # Build PDF and return bytes
     doc.build(elements)
@@ -1871,6 +1913,27 @@ def comprobante_retiro(nroDeOrden):
             elements.append(sig_table)
         elements.append(Spacer(1, 6))
         elements.append(Paragraph('Gracias por confiar en nuestros servicios técnicos.', small))
+
+        # Disclaimer de responsabilidad
+        elements.append(Spacer(1, 12))
+        disclaimer_style = ParagraphStyle(
+            'Disclaimer',
+            parent=styles['Normal'],
+            fontSize=7,
+            textColor=colors.HexColor('#333333'),
+            alignment=4,  # Justified
+            leading=9,
+            leftIndent=10,
+            rightIndent=10
+        )
+        disclaimer_text = (
+            "<b>IMPORTANTE:</b> Para retirar el producto deberá presentarse este comprobante. "
+            "Transcurrido 30 días de la fecha de la presente facturaremos por almacenaje y el precio de la reparación "
+            "será actualizado según la lista de precios vigentes. Si el producto no fuera retirado dentro del plazo "
+            "de 60 días de la fecha de la presente será considerado abandonado en los términos de los artículos 2525 y 2526 "
+            "del Código Civil, quedando facultados a darle el destino que consideremos pertinente."
+        )
+        elements.append(Paragraph(disclaimer_text, disclaimer_style))
 
         # Generar PDF
         doc.build(elements)
