@@ -1,6 +1,74 @@
-# ReparApp
+# ReparApp: Sistema de Gestión de Reparaciones de Dispositivos Electrónicos
 
-Instrucciones rápidas para ejecutar el backend localmente.
+## Caso de Estudio Funcional y Arquitectura de Software
+Proyecto desarrollado bajo el marco de trabajo ágil Scrum para la gestión operativa y administrativa de servicios técnicos integrales.
+
+---
+
+## Análisis del Problema de Negocio y Solución Propuesta
+
+* **Contexto:** Establecimiento comercial de servicio técnico con flujos operativos descentralizados, falta de trazabilidad en los estados de reparación y deficiencias en el control de stock de repuestos.
+* **Objetivo del Sistema:** Procesar y centralizar la información desde la recepción del dispositivo, diagnóstico, presupuesto y control de asignación de técnicos, hasta la entrega final y facturación al cliente.
+
+---
+
+## Matriz de Roles y Alcance Funcional
+
+El sistema valida las restricciones lógicas y de privacidad mediante un control de acceso basado en roles (RBAC) para cuatro perfiles independientes:
+
+| Rol | Responsabilidades Funcionales Clave |
+| :--- | :--- |
+| **Asistente de Ventas** | Recepción de equipos, alta de clientes y dispositivos, generación de órdenes de reparación en estado inicial, entrega y cobro. |
+| **Técnico** | Diagnóstico técnico, asignación de repuestos a la orden, registro de avances de reparación y actualización de estados logísticos. |
+| **Asistente de Compras** | Gestión de proveedores, control de puntos de reposición y actualización de existencias de repuestos críticos. |
+| **Supervisor** | Administración de usuarios del sistema, auditoría de logs y generación de reportes estratégicos en formatos CSV y PDF. |
+
+---
+
+## Ingeniería de Procesos: Máquina de Estados de una Orden
+
+El diseño funcional garantiza que una Orden de Reparación evolucione de forma consistente, impidiendo transiciones lógicas inválidas en la persistencia de datos.
+
+![Máquina de Estados de la Orden](./images/MaquinaEstadoOrden.drawio.png)
+
+### Flujos Críticos de Transición:
+1. **Presupuestada a En Reparación:** Requiere la confirmación explícita del cliente.
+2. **En Reparación a Pendiente de Retiro:** El técnico debe registrar obligatoriamente el resultado (Reparado / No Reparado) y los repuestos consumidos.
+3. **Pendiente de Retiro a Abandonada:** Automatización lógica si el cliente excede los 30 días de corrido para retirar el dispositivo.
+
+---
+
+## Arquitectura y Modelo de Dominio
+
+Para dar soporte a las reglas de negocio descritas, se diseñó un modelo relacional normalizado. El diagrama estructurado de entidades y sus relaciones se detalla a continuación:
+
+![Modelo de Dominio ReparApp](./images/Modelo%20de%20dominio%20ReparApp.drawio.png)
+
+* **Componentes Técnicos:** El backend está desarrollado en Python (Flask) con persistencia en SQLite. Implementa el manejo de sesiones seguras para restringir las peticiones HTTP según el perfil del usuario autenticado.
+
+---
+
+## Gestión de Proyecto y Metodología
+
+El desarrollo se estructuró en cuatro Sprints bajo el marco de trabajo Scrum, priorizando el Product Backlog según el valor de negocio de las épicas definidas:
+
+* **Sprint 0:** Relevamiento de requerimientos, análisis de riesgos y diseño preliminar de arquitectura (DER y diagramas UML).
+* **Sprint 1 y 2:** Implementación del núcleo transaccional (Módulo de Órdenes de Reparación y control de estados).
+* **Sprint 3 y 4:** Configuración de seguridad (RBAC), módulo de compras y desarrollo de componentes para la exportación de reportes.
+
+---
+
+## Repositorio de Documentación Técnica
+
+Para consultar la especificación detallada de la ingeniería del proyecto, los documentos originales se encuentran disponibles en la carpeta `/docs`:
+
+* [Manual de Usuario del Sistema](./docs/ReparApp%20-%20Manual%20de%20Usuario.pdf): Guía detallada paso a paso de las interfaces y de la gestión operativa de una orden para cada perfil de acceso.
+* [Plan de Proyecto y Requerimientos](./docs/ReparApp%20-%20Plan%20de%20Proyecto%20.pdf): Definición formal de objetivos, alcances del producto, requerimientos funcionales y requerimientos no funcionales.
+* [Definición del Producto e Ingeniería Técnica](./docs/ReparApp%20-%20Definición%20del%20producto.pdf): Product Backlog completo, diseño detallado de Épicas, Historias de Usuario con Criterios de Aceptación y Casos de Prueba.
+
+---
+
+## Instrucciones de Instalación y Despliegue Local
 
 Requisitos
 - Python 3.11+ instalado (requerido mínimo: 3.11).
